@@ -1,0 +1,102 @@
+
+```{r setup}
+knitr::opts_chunk$set(cache = FALSE, message = FALSE, warning = FALSE, echo = TRUE, eval = TRUE)
+```
+
+
+```{r}
+install.packages("patchwork")
+install.packages("spData")
+install.packages("dplyr")
+library(ceramic)
+library(spData)
+library(raster)
+library(sf)
+library(terra)
+library(tidyverse)
+library(tmap)
+library(patchwork)
+library(shiny)
+library(dplyr)
+library(leaflet)
+theme_set(theme_minimal())
+```
+
+```{r}
+wi_hospitals = read_sf("~/Documents/Stat436/ProjectMilestone2/Wisconsin_Hospitals.geojson")
+
+crital_acccess = read_sf("~/Documents/Stat436/ProjectMilestone2/Wisconsin_Critical_Access_Hospitals.geojson")
+
+counties = read_sf("~/Documents/Stat436/ProjectMilestone2/County_Boundaries_24K.geojson")
+```
+
+```{r}
+data(world)
+data(us_states)
+
+
+wisco = us_states %>% 
+  filter(NAME == "Wisconsin")
+
+hospitals = tm_shape(wisco) +
+  tm_borders() +
+  tm_shape(wi_hospitals) +
+  tm_dots(col = "red") 
+
+critAccess = tm_shape(wisco) +
+  tm_borders() +
+  tm_shape(crital_acccess) +
+  tm_bubbles(col = "blue", size = 0.5, alpha = 0.5)
+
+county_border = tm_shape(counties) +
+  tm_borders()
+  
+
+combined_plot = hospitals + critAccess + county_border
+combined_plot
+
+
+```
+
+
+Shiny App
+```{r}
+ui <- fluidPage(
+  titlePanel("Wisconsin Hospital Information"),
+  tmapOutput("map"),
+  verbatimTextOutput("hospital_info")
+)
+
+server <- function(input, output, session) {
+  
+  output$map <- renderTmap({
+    combined_plot
+  })
+  
+  clicked_county <- reactive({
+    click <- input$map_shape_click
+    if (!is.null(click)) {
+      click$id
+    }
+  })
+  
+  county_hospitals <- reactive({
+    clicked_county_val <- clicked_county()
+    if (!is.null(clicked_county_val)) {
+      wi_hospitals[wi_hospitals$county_name == clicked_county_val, ]
+    }
+  })
+  
+  output$hospital_info <- renderPrint({
+    county_hospitals_val <- county_hospitals()
+    if (!is.null(county_hospitals_val)) {
+      county_hospitals_val$name
+    }
+  })
+}
+
+shinyApp(ui = ui, server = server)
+```
+
+
+
