@@ -20,11 +20,19 @@ theme_set(theme_minimal())
 ```
 
 ```{r}
+<<<<<<< HEAD
 wi_hospitals = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/Wisconsin_Hospitals.geojson")
 
 crital_acccess = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/Wisconsin_Critical_Access_Hospitals.geojson")
 
 counties = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/County_Boundaries_24K.geojson")
+=======
+wi_hospitals = read_sf("./data/Wisconsin_Hospitals.geojson")
+
+crital_acccess = read_sf("./data/Wisconsin_Critical_Access_Hospitals.geojson")
+
+counties = read_sf("./data/ProjectMilestone2/County_Boundaries_24K.geojson")
+>>>>>>> e2979fb1133fe1d0ed62da3599a0a3829d1854e0
 ```
 
 ```{r}
