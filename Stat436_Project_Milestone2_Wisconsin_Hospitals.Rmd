@@ -20,19 +20,19 @@ theme_set(theme_minimal())
 ```
 
 ```{r}
-<<<<<<< HEAD
-wi_hospitals = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/Wisconsin_Hospitals.geojson")
-
-crital_acccess = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/Wisconsin_Critical_Access_Hospitals.geojson")
-
-counties = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/County_Boundaries_24K.geojson")
-=======
+# <<<<<<< HEAD
+# wi_hospitals = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/Wisconsin_Hospitals.geojson")
+# 
+# crital_acccess = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/Wisconsin_Critical_Access_Hospitals.geojson")
+# 
+# counties = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/County_Boundaries_24K.geojson")
+# =======
 wi_hospitals = read_sf("./data/Wisconsin_Hospitals.geojson")
 
 crital_acccess = read_sf("./data/Wisconsin_Critical_Access_Hospitals.geojson")
 
-counties = read_sf("./data/ProjectMilestone2/County_Boundaries_24K.geojson")
->>>>>>> e2979fb1133fe1d0ed62da3599a0a3829d1854e0
+counties = read_sf("./data/County_Boundaries_24K.geojson")
+# >>>>>>> e2979fb1133fe1d0ed62da3599a0a3829d1854e0
 ```
 
 ```{r}
@@ -115,28 +115,53 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
+  selectedHospital <- reactiveVal(NULL)
+  
   output$map <- renderLeaflet({
     leaflet() %>%
       addProviderTiles("OpenStreetMap.Mapnik") %>%
-      addPolygons(data = counties, fill = FALSE) %>%
-      addCircleMarkers(data = wi_hospitals, ~LAT, ~LON, label = ~NAME, color = "red", radius = 4) 
+      addPolygons(data = counties, weight = 0.3, fill = FALSE) %>%
+      setView(lng = -88.78, lat = 44.78, zoom = 6) %>%
+      addCircleMarkers(data = wi_hospitals,
+        radius = ~ifelse(SUB_TYPE_DESC == "CRITICAL ACCESS HOSPITALS", 3, 5),
+        color = ~ifelse(SUB_TYPE_DESC == "CRITICAL ACCESS HOSPITALS", "red", "blue"),
+        label = ~NAME,
+        popup = ~paste("<b>Name:</b>", NAME, 
+                       "<br><b>Address:</b>", ADDRESS, 
+                       "<br><b>City:</b>", CITY, 
+                       "<br><b>State:</b>", STATE, 
+                       "<br><b>Zip:</b>", ZIP, 
+                       "<br><b>County:</b>", COUNTY,
+                       "<br><b>Type:</b>", TYPE_DESC,
+                       "<br><b>Sub Type:</b>", SUB_TYPE_DESC),
+                
+        layerId = ~NAME
+      )
   })
   
-  
+  observeEvent(input$map_marker_click, {
+    selectedHospital(input$map_marker_click$id)
+  })
+
   output$hospital_info <- renderPrint({
-    event <- input$map_click
-    if (!is.null(event)) {
-      clicked_hospital <- leaflet::nearPoints(wi_hospitals, event$lng, event$lat, maxpoints = 1)
-      if (nrow(clicked_hospital) > 0) {
-        hospital_info <- clicked_hospital[, c("CITY", "ZIP", "COUNTY", "TYPE_DESC", "SUB_TYPE_DESC")]
-        hospital_info
+    if (!is.null(selectedHospital())) {
+      hospital <- subset(wi_hospitals, NAME == selectedHospital())
+      if (nrow(hospital) > 0) {
+        # info <- hospital[, c("NAME", "ADDRESS", "CITY", "STATE", "ZIP", "COUNTY", "TYPE_DESC", "SUB_TYPE_DESC")]
+        info <- as.data.frame(hospital[, c("NAME", "ADDRESS", "CITY", "STATE", "ZIP", "COUNTY", "TYPE_DESC", "SUB_TYPE_DESC")])
+        print(info$NAME)
+      } else {
+        print("No details available.")
       }
+    } else {
+      print("None Selected")
     }
   })
+
 }
 
 
-shinyApp(ui = ui, server = server)
+shinyApp(ui, server)
 ```
 
 
