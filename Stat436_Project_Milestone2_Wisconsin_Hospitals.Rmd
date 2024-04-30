@@ -5,9 +5,6 @@ knitr::opts_chunk$set(cache = FALSE, message = FALSE, warning = FALSE, echo = TR
 
 
 ```{r}
-install.packages("patchwork")
-install.packages("spData")
-install.packages("dplyr")
 library(ceramic)
 library(spData)
 library(raster)
@@ -23,11 +20,11 @@ theme_set(theme_minimal())
 ```
 
 ```{r}
-wi_hospitals = read_sf("~/Documents/Stat436/ProjectMilestone2/Wisconsin_Hospitals.geojson")
+wi_hospitals = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/Wisconsin_Hospitals.geojson")
 
-crital_acccess = read_sf("~/Documents/Stat436/ProjectMilestone2/Wisconsin_Critical_Access_Hospitals.geojson")
+crital_acccess = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/Wisconsin_Critical_Access_Hospitals.geojson")
 
-counties = read_sf("~/Documents/Stat436/ProjectMilestone2/County_Boundaries_24K.geojson")
+counties = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/County_Boundaries_24K.geojson")
 ```
 
 ```{r}
@@ -94,6 +91,42 @@ server <- function(input, output, session) {
     }
   })
 }
+
+shinyApp(ui = ui, server = server)
+```
+
+
+New Attempt Here (trying to select by county):
+```{r}
+ui <- fluidPage(
+  titlePanel("Wisconsin Hospital Information"),
+  leafletOutput("map"),
+  verbatimTextOutput("hospital_info")
+)
+
+
+server <- function(input, output, session) {
+  
+  output$map <- renderLeaflet({
+    leaflet() %>%
+      addProviderTiles("OpenStreetMap.Mapnik") %>%
+      addPolygons(data = counties, fill = FALSE) %>%
+      addCircleMarkers(data = wi_hospitals, ~LAT, ~LON, label = ~NAME, color = "red", radius = 4) 
+  })
+  
+  
+  output$hospital_info <- renderPrint({
+    event <- input$map_click
+    if (!is.null(event)) {
+      clicked_hospital <- leaflet::nearPoints(wi_hospitals, event$lng, event$lat, maxpoints = 1)
+      if (nrow(clicked_hospital) > 0) {
+        hospital_info <- clicked_hospital[, c("CITY", "ZIP", "COUNTY", "TYPE_DESC", "SUB_TYPE_DESC")]
+        hospital_info
+      }
+    }
+  })
+}
+
 
 shinyApp(ui = ui, server = server)
 ```
