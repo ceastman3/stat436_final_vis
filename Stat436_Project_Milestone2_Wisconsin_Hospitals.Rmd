@@ -1,7 +1,3 @@
----
-output: html_document
-runtime: shiny
----
 
 ```{r setup}
 knitr::opts_chunk$set(cache = FALSE, message = FALSE, warning = FALSE, echo = TRUE, eval = TRUE)
@@ -23,7 +19,6 @@ library(leaflet)
 theme_set(theme_minimal())
 ```
 
-Loading data
 ```{r}
 # <<<<<<< HEAD
 # wi_hospitals = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/Wisconsin_Hospitals.geojson")
@@ -32,15 +27,14 @@ Loading data
 # 
 # counties = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/County_Boundaries_24K.geojson")
 # =======
-wi_hospitals = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/data/Wisconsin_Hospitals.geojson")
+wi_hospitals = read_sf("./data/Wisconsin_Hospitals.geojson")
 
-crital_acccess = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/data/Wisconsin_Critical_Access_Hospitals.geojson")
+crital_acccess = read_sf("./data/Wisconsin_Critical_Access_Hospitals.geojson")
 
-counties = read_sf("~/Documents/Stat436/projectpt3/stat436_final_vis/data/County_Boundaries_24K.geojson")
+counties = read_sf("./data/County_Boundaries_24K.geojson")
 # >>>>>>> e2979fb1133fe1d0ed62da3599a0a3829d1854e0
 ```
 
-Loading in Wisco vector data and overlaying hospitals:
 ```{r}
 data(world)
 data(us_states)
@@ -70,7 +64,7 @@ combined_plot
 ```
 
 
-Original Shiny App:
+Shiny App
 ```{r}
 ui <- fluidPage(
   titlePanel("Wisconsin Hospital Information"),
@@ -110,7 +104,7 @@ shinyApp(ui = ui, server = server)
 ```
 
 
-Second Attempt Here:
+New Attempt Here (trying to select by county):
 ```{r}
 ui <- fluidPage(
   titlePanel("Wisconsin Hospital Information"),
@@ -170,63 +164,5 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 ```
 
-Newest Attempt Here (filters by each county)
-```{r}
-ui <- fluidPage(
-  titlePanel("Wisconsin Hospital Information"),
-  sidebarLayout(
-    sidebarPanel(
-      textInput("county_input", "Enter County Name:", ""),
-      actionButton("submit_county", "Submit")
-    ),
-    mainPanel(
-      leafletOutput("map"),
-      verbatimTextOutput("hospital_info")
-    )
-  )
-)
 
-server <- function(input, output, session) {
-  
-  # Reactive expression to filter hospitals based on the selected county
-  filtered_hospitals <- eventReactive(input$submit_county, {
-    req(input$county_input)
-    selected_county <- tolower(input$county_input)
-    subset(wi_hospitals, tolower(COUNTY) == selected_county)
-  })
-  
-  output$map <- renderLeaflet({
-    leaflet() %>%
-      addProviderTiles("OpenStreetMap.Mapnik") %>%
-      addPolygons(data = counties, weight = 0.3, fill = FALSE) %>%
-      setView(lng = -88.78, lat = 44.78, zoom = 6) %>%
-      addCircleMarkers(data = filtered_hospitals(),
-                       radius = ~ifelse(SUB_TYPE_DESC == "CRITICAL ACCESS HOSPITALS", 3, 5),
-                       color = ~ifelse(SUB_TYPE_DESC == "CRITICAL ACCESS HOSPITALS", "red", "blue"),
-                       label = ~NAME,
-                       popup = ~paste("<b>Name:</b>", NAME, 
-                                      "<br><b>Address:</b>", ADDRESS, 
-                                      "<br><b>City:</b>", CITY, 
-                                      "<br><b>State:</b>", STATE, 
-                                      "<br><b>Zip:</b>", ZIP, 
-                                      "<br><b>County:</b>", COUNTY,
-                                      "<br><b>Type:</b>", TYPE_DESC,
-                                      "<br><b>Sub Type:</b>", SUB_TYPE_DESC),
-                       layerId = ~NAME
-      )
-  })
-  
-  output$hospital_info <- renderPrint({
-    filtered_hospitals_data <- filtered_hospitals()
-    if (nrow(filtered_hospitals_data) > 0) {
-      hospital_names <- filtered_hospitals_data$NAME
-      print(hospital_names)
-    } else {
-      print("No hospitals found in the specified county.")
-    }
-  })
-}
 
-shinyApp(ui, server)
-
-```
