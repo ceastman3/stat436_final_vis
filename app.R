@@ -75,12 +75,19 @@ wisconsin_hospital_data_long <- wisconsin_hospital_data %>%
 
 
 plot_charges = function(data) {
-  # isconsin_hospital_data_long
-  ggplot(data, aes(x = `Provider.City`, y = Value, fill = Measurement)) +
+  if (mean(data$Value) == -1) {
+    graph_title = paste(data$Provider.City[0], "Data Unavailable")
+  } 
+  else {
+    graph_title = paste("Cost in ", data$Provider.City)
+  }
+  
+  
+  ggplot(data, aes(x = `Measurement`, y = Value, fill = Measurement)) +
     geom_col(position = position_dodge()) +
     labs(
-      title = "Healthcare Payments/Charges by Provider City in Wisconsin",
-      subtitle = "Average costs for different types of payments",
+      # title = paste("Cost in ", data$Provider.City),
+      title = graph_title,
       x = "Provider City (Wisconsin)",
       y = "Average Cost",
       fill = "Type"
@@ -88,7 +95,7 @@ plot_charges = function(data) {
     scale_fill_manual(values = c("Average Covered Charges" = "blue", "Average Total Payments" = "red", "Average Medicare Payments" = "green")) +
     theme_classic() +
     theme(
-      axis.text.x = element_text(angle = 45, hjust = 1),
+      axis.text.x = element_text(angle = 20, hjust = 1),
       legend.position = "none",
       panel.grid.major.x = element_line(size = 0.5, linetype = "dashed"),
       panel.grid.major.y = element_line(size = 0.5, linetype = "dashed")
@@ -107,22 +114,27 @@ ui <- fluidPage(
   leafletOutput("map"),
   verbatimTextOutput("hospital_info"),
   fluidRow(
-    column(6, 
+    column(6,
+           h3("Number of ICU Beds per County", style={'color:white; 
+                                              background-color:#77C3EC;
+                                              border-radius:5px;
+                                              padding:5px'}),
            plotOutput("icu_graph")  
            ),
     column(6,
+           h3("Average Healthcare Cost", style={'color:white; 
+                                              background-color:#77C3EC;
+                                              border-radius:5px;
+                                              padding:5px'}),
            plotOutput("single_charges"),
            )
   ),
+  h3("Average Healthcare Cost by Provider City in Wisconsin", style={'color:white; 
+                                              background-color:#77C3EC;
+                                              border-radius:5px;
+                                              padding:5px'}),
   plotOutput("charges_graph")
-  # fluidRow(
-  #   column(6,
-  #      plotOutput("icu_graph")    
-  #   ),
-  #   column(6,
-  #      plotOutput("charges_graph") 
-  #   )
-  # )
+
 )
 
 
@@ -160,7 +172,6 @@ server <- function(input, output, session) {
     if (!is.null(selectedHospital())) {
       hospital <- subset(wi_hospitals, NAME == selectedHospital())
       if (nrow(hospital) > 0) {
-        # info <- hospital[, c("NAME", "ADDRESS", "CITY", "STATE", "ZIP", "COUNTY", "TYPE_DESC", "SUB_TYPE_DESC")]
         info <- as.data.frame(hospital[, c("NAME", "ADDRESS", "CITY", "STATE", "ZIP", "COUNTY", "TYPE_DESC", "SUB_TYPE_DESC")])
         print(info$NAME)
       } else {
@@ -185,7 +196,23 @@ server <- function(input, output, session) {
   })
   
   output$charges_graph = renderPlot({
-    plot_charges(wisconsin_hospital_data_long)
+    ggplot(wisconsin_hospital_data_long, aes(x = `Provider.City`, y = Value, fill = Measurement)) +
+      geom_col(position = position_dodge()) +
+      labs(
+        # title = "Healthcare Payments/Charges by Provider City in Wisconsin",
+        # subtitle = "Average costs for different types of payments",
+        x = "Provider City (Wisconsin)",
+        y = "Average Cost",
+        fill = "Type"
+      ) +
+      scale_fill_manual(values = c("Average Covered Charges" = "blue", "Average Total Payments" = "red", "Average Medicare Payments" = "green")) +
+      theme_classic() +
+      theme(
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "top",
+        panel.grid.major.x = element_line(size = 0.5, linetype = "dashed"),
+        panel.grid.major.y = element_line(size = 0.5, linetype = "dashed")
+      )
   })
   
   output$single_charges = renderPlot({
@@ -195,7 +222,18 @@ server <- function(input, output, session) {
       charges = wisconsin_hospital_data_long |>
         filter(Provider.City == toupper(hospital$CITY))
       
+      if (nrow(charges) <= 0) {
+        city = toupper(hospital$CITY)
+        charges = data.frame(Provider.City = c(city, city, city), 
+                             Measurement = c("Average Covered Charges",
+                                             "Average Total Payments",
+                                             "Average Medicare Payments"),
+                             Value = c(-1, -1, -1))
+      }
+      
       plot_charges(charges)
+      
+      
     }
     else{
       charges = wisconsin_hospital_data_long |>
