@@ -15,8 +15,8 @@ library(readr)
 ```
 
 ```{r}
-wi_counties <- st_read("wi_counties_geojson.geojson")
-icu <- read_csv('icu_beds.csv')
+wi_counties <- st_read("../data/wi_counties_geojson.geojson")
+icu <- read_csv('../data/icu_beds.csv')
 
 icu_wisc = icu %>%
   filter(State == "Wisconsin") %>%

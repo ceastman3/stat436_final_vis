@@ -10,42 +10,119 @@ library(shiny)
 library(dplyr)
 library(leaflet)
 theme_set(theme_minimal())
+library(ggplot2)
+library(ggthemes)
+library(reshape2)
+library(stringr)
 
 
-########################## Leaflet data loading ################################
-wi_hospitals = read_sf("../data/Wisconsin_Hospitals.geojson")
-crital_acccess = read_sf("../data/Wisconsin_Critical_Access_Hospitals.geojson")
-counties = read_sf("../data/County_Boundaries_24K.geojson")
+############################## Data loading ###################################
+# Leaflet graph data
+wi_hospitals = read_sf("./data/Wisconsin_Hospitals.geojson")
+crital_acccess = read_sf("./data/Wisconsin_Critical_Access_Hospitals.geojson")
+counties = read_sf("./data/County_Boundaries_24K.geojson")
+# Static Graph Data
+hospital_charges_data <- read.csv("./data/inpatientCharges.csv")
+# 
+wi_counties <- read_sf("./data/wi_counties_geojson.geojson")
+icu <- read.csv('./data/icu_beds.csv')
 
 ####################### Leaflet Data Manipulation #############################
-# data(world)
-# data(us_states)
-# 
-# 
-# wisco = us_states %>% 
-#   filter(NAME == "Wisconsin")
-# 
-# hospitals = tm_shape(wisco) +
-#   tm_borders() +
-#   tm_shape(wi_hospitals) +
-#   tm_dots(col = "red") 
-# 
-# critAccess = tm_shape(wisco) +
-#   tm_borders() +
-#   tm_shape(crital_acccess) +
-#   tm_bubbles(col = "blue", size = 0.5, alpha = 0.5)
-# 
-# county_border = tm_shape(counties) +
-#   tm_borders()
 
-# combined_plot = hospitals + critAccess + county_border
-# combined_plot
+
+
+####################### ICU Bed Data Manipulation #############################
+
+icu_wisc = icu %>%
+  filter(State == "Wisconsin") %>%
+  filter(ICU.Beds > 0) %>%
+  na.omit()
+
+icu_wisc <- icu_wisc %>%
+  rename(county_nam = County) 
+
+merged_data <- wi_counties %>%
+  left_join(icu_wisc, by = "county_nam")
+
+merged_data <- merged_data %>%
+  mutate(ICU_Beds_Per_10000 = (ICU.Beds / Total.Population) * 10000)
+
+###############################################################################
+
+wisconsin_hospital_data <- hospital_charges_data %>%
+  filter(`Provider.State` == "WI") %>%
+  mutate(
+    `Average Covered Charges` = as.numeric(str_remove_all(`Average.Covered.Charges`, "\\$|,")),
+    `Average Total Payments` = as.numeric(str_remove_all(`Average.Total.Payments`, "\\$|,")),
+    `Average Medicare Payments` = as.numeric(str_remove_all(`Average.Medicare.Payments`, "\\$|,"))
+  ) %>%
+  group_by(`Provider.City`) %>%
+  summarise(
+    `Average Covered Charges` = mean(`Average Covered Charges`, na.rm = TRUE),
+    `Average Total Payments` = mean(`Average Total Payments`, na.rm = TRUE),
+    `Average Medicare Payments` = mean(`Average Medicare Payments`, na.rm = TRUE)
+  )
+
+wisconsin_hospital_data_long <- wisconsin_hospital_data %>%
+  pivot_longer(
+    cols = c("Average Covered Charges", "Average Total Payments", "Average Medicare Payments"),
+    names_to = "Measurement",
+    values_to = "Value"
+  )
+
+
+##############################################################################
+
+
+plot_charges = function(data) {
+  # isconsin_hospital_data_long
+  ggplot(data, aes(x = `Provider.City`, y = Value, fill = Measurement)) +
+    geom_col(position = position_dodge()) +
+    labs(
+      title = "Healthcare Payments/Charges by Provider City in Wisconsin",
+      subtitle = "Average costs for different types of payments",
+      x = "Provider City (Wisconsin)",
+      y = "Average Cost",
+      fill = "Type"
+    ) +
+    scale_fill_manual(values = c("Average Covered Charges" = "blue", "Average Total Payments" = "red", "Average Medicare Payments" = "green")) +
+    theme_classic() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      legend.position = "none",
+      panel.grid.major.x = element_line(size = 0.5, linetype = "dashed"),
+      panel.grid.major.y = element_line(size = 0.5, linetype = "dashed")
+    )
+}
+
 
 
 ui <- fluidPage(
-  titlePanel("Wisconsin Hospital Information"),
+  titlePanel(
+    h1("Wisconsin Hospital Information", style={'color:white; 
+                                              background-color:#77C3EC;
+                                              border-radius:5px;
+                                              padding:5px'})
+  ),
   leafletOutput("map"),
-  verbatimTextOutput("hospital_info")
+  verbatimTextOutput("hospital_info"),
+  fluidRow(
+    column(6, 
+           plotOutput("icu_graph")  
+           ),
+    column(6,
+           plotOutput("single_charges"),
+           )
+  ),
+  plotOutput("charges_graph")
+  # fluidRow(
+  #   column(6,
+  #      plotOutput("icu_graph")    
+  #   ),
+  #   column(6,
+  #      plotOutput("charges_graph") 
+  #   )
+  # )
 )
 
 
@@ -91,6 +168,40 @@ server <- function(input, output, session) {
       }
     } else {
       print("None Selected")
+    }
+  })
+  
+  output$icu_graph = renderPlot({
+    ggplot(data = merged_data) +
+      geom_sf(aes(fill = ICU_Beds_Per_10000), color = "white") +
+      scale_fill_viridis_c(name = "Beds Scale", option = "plasma", direction = 1) +
+      # labs(title = "ICU Beds per 10,000 People in Wisconsin Counties",
+      #      subtitle = "Data from ICU Beds Dataset") +
+      theme_minimal() +
+      # theme(legend.position = c(0.65, 0.9),
+      theme(legend.position = c(0.9, 0.85),
+            plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5))
+  })
+  
+  output$charges_graph = renderPlot({
+    plot_charges(wisconsin_hospital_data_long)
+  })
+  
+  output$single_charges = renderPlot({
+    if (!is.null(selectedHospital())) {
+      hospital <- subset(wi_hospitals, NAME == selectedHospital())
+      
+      charges = wisconsin_hospital_data_long |>
+        filter(Provider.City == toupper(hospital$CITY))
+      
+      plot_charges(charges)
+    }
+    else{
+      charges = wisconsin_hospital_data_long |>
+        filter(Provider.City == "APPLETON")
+      
+      plot_charges(charges)
     }
   })
   
