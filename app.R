@@ -27,9 +27,6 @@ hospital_charges_data <- read.csv("./data/inpatientCharges.csv")
 wi_counties <- read_sf("./data/wi_counties_geojson.geojson")
 icu <- read.csv('./data/icu_beds.csv')
 
-####################### Leaflet Data Manipulation #############################
-
-
 
 ####################### ICU Bed Data Manipulation #############################
 
@@ -75,13 +72,6 @@ wisconsin_hospital_data_long <- wisconsin_hospital_data %>%
 
 
 plot_charges = function(data) {
-  # if (mean(data$Value) == 0) {
-  #   graph_title = paste(data$Provider.City, "Data Unavailable")
-  # } 
-  # else {
-  #   graph_title = paste("Cost in ", data$Provider.City)
-  # }
-  
   ggplot(data, aes(x = `Provider.City`, y = Value, fill = Measurement)) +
     geom_col(position = position_dodge()) +
     labs(
@@ -97,26 +87,7 @@ plot_charges = function(data) {
       panel.grid.major.x = element_line(size = 0.5, linetype = "dashed"),
       panel.grid.major.y = element_line(size = 0.5, linetype = "dashed")
     )
-  
-  # ggplot(data, aes(x = `Measurement`, y = Value, fill = Measurement)) +
-  #   geom_col(position = position_dodge()) +
-  #   labs(
-  #     # title = paste("Cost in ", data$Provider.City),
-  #     title = graph_title,
-  #     x = "Provider City (Wisconsin)",
-  #     y = "Average Cost",
-  #     fill = "Type"
-  #   ) +
-  #   scale_fill_manual(values = c("Average Covered Charges" = "blue", "Average Total Payments" = "red", "Average Medicare Payments" = "green")) +
-  #   theme_classic() +
-  #   theme(
-  #     axis.text.x = element_text(angle = 20, hjust = 1),
-  #     legend.position = "none",
-  #     panel.grid.major.x = element_line(size = 0.5, linetype = "dashed"),
-  #     panel.grid.major.y = element_line(size = 0.5, linetype = "dashed")
-  #   )
 }
-
 
 
 ui <- fluidPage(
@@ -147,7 +118,6 @@ ui <- fluidPage(
                                               border-radius:5px;
                                               padding:5px'}),
            plotOutput("single_charges"),
-           # verbatimTextOutput("cities")
            )
   )
 )
@@ -222,54 +192,16 @@ server <- function(input, output, session) {
   })
   
   output$charges_graph = renderPlot({
-    # ggplot(wisconsin_hospital_data_long, aes(x = `Provider.City`, y = Value, fill = Measurement)) +
-    #   geom_col(position = position_dodge()) +
-    #   labs(
-    #     x = "Provider City (Wisconsin)",
-    #     y = "Average Cost",
-    #     fill = "Type"
-    #   ) +
-    #   scale_fill_manual(values = c("Average Covered Charges" = "blue", "Average Total Payments" = "red", "Average Medicare Payments" = "green")) +
-    #   theme_classic() +
-    #   theme(
-    #     axis.text.x = element_text(angle = 45, hjust = 1),
-    #     legend.position = "top",
-    #     panel.grid.major.x = element_line(size = 0.5, linetype = "dashed"),
-    #     panel.grid.major.y = element_line(size = 0.5, linetype = "dashed")
-    #   )
     plot_charges(wisconsin_hospital_data_long)
   })
   
-  # output$cities = renderText({
-  #   selected_city()
-  # })
-  
   output$single_charges = renderPlot({
     if (!is.null(selected_city())) {
-      # hospital <- subset(wi_hospitals, NAME == selected_city())
-      # hospitals = wi_hospital |>
-      #   filter(NAME %in% selected_city())
-      # 
-      # charges = wisconsin_hospital_data_long |>
-      #   filter(Provider.City == toupper(hospitals$CITY))
-      # 
-      # if (nrow(charges) <= 0) {
-      #   city = toupper(hospital$CITY)
-      #   charges = data.frame(Provider.City = c(city, city, city), 
-      #                        Measurement = c("Average Covered Charges",
-      #                                        "Average Total Payments",
-      #                                        "Average Medicare Payments"),
-      #                        Value = c(0, 0, 0))
-      
+
       charges = wisconsin_hospital_data_long |>
         filter(Provider.City %in% selected_city())
       
       plot_charges(charges)
-      
-  
-      # plot_charges(charges)
-      
-      
     }
     else{
       charges = wisconsin_hospital_data_long |>
