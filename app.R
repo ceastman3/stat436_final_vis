@@ -75,8 +75,8 @@ wisconsin_hospital_data_long <- wisconsin_hospital_data %>%
 
 
 plot_charges = function(data) {
-  if (mean(data$Value) == -1) {
-    graph_title = paste(data$Provider.City[0], "Data Unavailable")
+  if (mean(data$Value) == 0) {
+    graph_title = paste(data$Provider.City, "Data Unavailable")
   } 
   else {
     graph_title = paste("Cost in ", data$Provider.City)
@@ -228,7 +228,7 @@ server <- function(input, output, session) {
                              Measurement = c("Average Covered Charges",
                                              "Average Total Payments",
                                              "Average Medicare Payments"),
-                             Value = c(-1, -1, -1))
+                             Value = c(0, 0, 0))
       }
       
       plot_charges(charges)
